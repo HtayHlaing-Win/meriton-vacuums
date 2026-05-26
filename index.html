@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meriton Vacuums - Floor Status Tracker</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            text-align: center;
+        }
+
+        .header h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+        }
+
+        .header p {
+            color: #666;
+            font-size: 1.1em;
+        }
+
+        .status-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        .floor-card {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border-left: 5px solid #ccc;
+        }
+
+        .floor-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+        }
+
+        .floor-card.cleaning {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-left-color: #667eea;
+        }
+
+        .floor-card.done {
+            background: linear-gradient(135deg, #84fab0 0%, #8fd3f4 100%);
+            border-left-color: #84fab0;
+        }
+
+        .floor-card.paused {
+            background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+            border-left-color: #fa709a;
+        }
+
+        .floor-card.unknown {
+            background: #f5f5f5;
+            color: #333;
+            border-left-color: #ccc;
+        }
+
+        .floor-number {
+            font-size: 1.8em;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .floor-status {
+            font-size: 0.9em;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 600;
+        }
+
+        .floor-qty {
+            font-size: 0.85em;
+            opacity: 0.9;
+            margin-bottom: 8px;
+        }
+
+        .floor-note {
+            font-size: 0.8em;
+            opacity: 0.85;
+            font-style: italic;
+            word-break: break-word;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            max-width: 400px;
+            width: 90%;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+
+        .modal-header {
+            font-size: 1.8em;
+            font-weight: bold;
+            margin-bottom: 20px;
+            color: #333;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 600;
+        }
+
+        .form-group select,
+        .form-group input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 1em;
+            transition: border-color 0.3s;
+        }
+
+        .form-group select:focus,
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            justify-content: space-between;
+            margin-top: 30px;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: #f5f5f5;
+            color: #333;
+            border: 2px solid #ddd;
+        }
+
+        .btn-secondary:hover {
+            background: #eee;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.75em;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .status-badge.cleaning {
+            background: #667eea;
+            color: white;
+        }
+
+        .status-badge.done {
+            background: #84fab0;
+            color: #333;
+        }
+
+        .status-badge.paused {
+            background: #fa709a;
+            color: white;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: white;
+            font-size: 1.2em;
+        }
+
+        .error-message {
+            background: #ff6b6b;
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 1.8em;
+            }
+
+            .status-container {
+                grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+                gap: 10px;
+            }
+
+            .floor-card {
+                padding: 15px;
+            }
+
+            .floor-number {
+                font-size: 1.5em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🧹 Meriton Vacuums</h1>
+            <p>Floor Status Tracker</p>
+        </div>
+
+        <div id="errorMessage" class="error-message" style="display: none;"></div>
+
+        <div id="loadingMessage" class="loading">
+            Loading floor data...
+        </div>
+
+        <div id="statusContainer" class="status-container" style="display: none;"></div>
+    </div>
+
+    <div id="modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">Floor <span id="modalFloorNumber"></span></div>
+            <form id="floorForm">
+                <div class="form-group">
+                    <label for="status">Status</label>
+                    <select id="status" required>
+                        <option value="unknown">Unknown</option>
+                        <option value="cleaning">Cleaning</option>
+                        <option value="done">Done</option>
+                        <option value="paused">Paused</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="qty">Quantity (rooms cleaned)</label>
+                    <input type="number" id="qty" min="0" value="0">
+                </div>
+
+                <div class="form-group">
+                    <label for="note">Note</label>
+                    <input type="text" id="note" placeholder="e.g., waiting for tenant">
+                </div>
+
+                <div class="button-group">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Supabase Configuration
+        const SUPABASE_URL = 'https://bizgyzqrgwjkntszihci.supabase.co';
+        const SUPABASE_KEY = 'sb_publishable_b4I1E_66kkwI8ach3ZPgLw_bM675B9l';
+
+        let currentFloor = null;
+        let floorData = {};
+        let refreshInterval = null;
+
+        // Initialize
+        async function init() {
+            await loadFloors();
+            renderFloors();
+            
+            // Auto-refresh every 5 seconds
+            refreshInterval = setInterval(async () => {
+                await loadFloors();
+                renderFloors();
+            }, 5000);
+        }
+
+        // Load floors from Supabase
+        async function loadFloors() {
+            try {
+                const response = await fetch(
+                    `${SUPABASE_URL}/rest/v1/floors?select=*`,
+                    {
+                        headers: {
+                            'apikey': SUPABASE_KEY,
+                            'Authorization': `Bearer ${SUPABASE_KEY}`
+                        }
+                    }
+                );
+
+                if (!response.ok) {
+                    throw new Error('Failed to load data');
+                }
+
+                const data = await response.json();
+                floorData = {};
+                data.forEach(floor => {
+                    floorData[floor.floor] = {
+                        status: floor.status || 'unknown',
+                        qty: floor.qty || 0,
+                        note: floor.note || ''
+                    };
+                });
+
+                document.getElementById('loadingMessage').style.display = 'none';
+                document.getElementById('statusContainer').style.display = 'grid';
+                document.getElementById('errorMessage').style.display = 'none';
+            } catch (error) {
+                console.error('Error:', error);
+                document.getElementById('errorMessage').textContent = '⚠️ Connection error. Retrying...';
+                document.getElementById('errorMessage').style.display = 'block';
+            }
+        }
+
+        // Render floor cards
+        function renderFloors() {
+            const container = document.getElementById('statusContainer');
+            container.innerHTML = '';
+
+            for (let floor = 4; floor <= 29; floor++) {
+                const data = floorData[floor] || { status: 'unknown', qty: 0, note: '' };
+                
+                const card = document.createElement('div');
+                card.className = `floor-card ${data.status}`;
+                card.onclick = () => openModal(floor);
+
+                card.innerHTML = `
+                    <div class="floor-number">Floor ${floor}</div>
+                    <div class="floor-status">
+                        <span class="status-badge ${data.status}">${data.status}</span>
+                    </div>
+                    <div class="floor-qty">Rooms: ${data.qty}</div>
+                    ${data.note ? `<div class="floor-note">"${data.note}"</div>` : ''}
+                `;
+
+                container.appendChild(card);
+            }
+        }
+
+        // Open edit modal
+        function openModal(floor) {
+            currentFloor = floor;
+            const data = floorData[floor] || { status: 'unknown', qty: 0, note: '' };
+
+            document.getElementById('modalFloorNumber').textContent = floor;
+            document.getElementById('status').value = data.status;
+            document.getElementById('qty').value = data.qty;
+            document.getElementById('note').value = data.note;
+
+            document.getElementById('modal').classList.add('active');
+        }
+
+        // Close modal
+        function closeModal() {
+            document.getElementById('modal').classList.remove('active');
+            currentFloor = null;
+        }
+
+        // Save floor data
+        document.getElementById('floorForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const status = document.getElementById('status').value;
+            const qty = parseInt(document.getElementById('qty').value) || 0;
+            const note = document.getElementById('note').value;
+
+            try {
+                const response = await fetch(
+                    `${SUPABASE_URL}/rest/v1/floors?floor=eq.${currentFloor}`,
+                    {
+                        method: 'PATCH',
+                        headers: {
+                            'apikey': SUPABASE_KEY,
+                            'Authorization': `Bearer ${SUPABASE_KEY}`,
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            status: status,
+                            qty: qty,
+                            note: note
+                        })
+                    }
+                );
+
+                if (!response.ok) {
+                    throw new Error('Failed to save');
+                }
+
+                await loadFloors();
+                renderFloors();
+                closeModal();
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error saving floor data');
+            }
+        });
+
+        // Close modal when clicking outside
+        document.getElementById('modal').addEventListener('click', (e) => {
+            if (e.target.id === 'modal') {
+                closeModal();
+            }
+        });
+
+        // Start the app
+        init();
+    </script>
+</body>
+</html>
