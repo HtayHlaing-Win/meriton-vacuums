@@ -114,10 +114,10 @@
   const FLOORS = Array.from({length: 26}, (_, i) => i + 4);
 
   let data = {};
-  let lastDataHash = '';
   let openFloor = null;
   let searchVal = '';
   let noteTimers = {};
+  const pendingSaves = new Set();
 
   function defaultFloor() { return { status: 'unknown', qty: 0, note: '' }; }
 
@@ -146,23 +146,29 @@
     return res.json();
   }
 
-  function dataHash() {
-    return JSON.stringify(data);
-  }
-
   async function loadAll() {
     const rows = await sbFetch('/rest/v1/floors?select=*&order=floor.asc');
-    FLOORS.forEach(f => { data[f] = defaultFloor(); });
-    rows.forEach(r => { data[r.floor] = { status: r.status, qty: r.qty, note: r.note || '' }; });
+    // Only update floors NOT currently being saved — prevents overwriting in-flight changes
+    rows.forEach(r => {
+      if (!pendingSaves.has(r.floor)) {
+        data[r.floor] = { status: r.status, qty: r.qty, note: r.note || '' };
+      }
+    });
+    FLOORS.forEach(f => { if (!data[f]) data[f] = defaultFloor(); });
   }
 
   async function upsertFloor(f) {
-    const d = data[f];
-    await sbFetch('/rest/v1/floors', {
-      method: 'POST',
-      headers: { 'Prefer': 'resolution=merge-duplicates,return=minimal' },
-      body: JSON.stringify({ floor: f, status: d.status, qty: d.qty, note: d.note })
-    });
+    pendingSaves.add(f);
+    try {
+      const d = data[f];
+      await sbFetch('/rest/v1/floors', {
+        method: 'POST',
+        headers: { 'Prefer': 'resolution=merge-duplicates,return=minimal' },
+        body: JSON.stringify({ floor: f, status: d.status, qty: d.qty, note: d.note })
+      });
+    } finally {
+      pendingSaves.delete(f);
+    }
   }
 
   async function setStatus(f, s) {
@@ -280,11 +286,7 @@
   async function poll() {
     try {
       await loadAll();
-      const hash = dataHash();
-      if (hash !== lastDataHash) {
-        lastDataHash = hash;
-        render();
-      }
+      render();
       const t = new Date();
       document.getElementById('sync-lbl').textContent =
         'Live · ' + t.toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit' });
@@ -296,7 +298,6 @@
   async function init() {
     try {
       await loadAll();
-      lastDataHash = dataHash();
       render();
       document.getElementById('sync-lbl').textContent = 'Live';
       setInterval(poll, 3000);
