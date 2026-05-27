@@ -118,6 +118,7 @@
   let searchVal = '';
   let noteTimers = {};
   const pendingSaves = new Set();
+  let lastDataHash = '';
 
   function defaultFloor() { return { status: 'unknown', qty: 0, note: '' }; }
 
@@ -177,6 +178,7 @@
     if (s === 'has' && data[f].qty === 0) data[f].qty = 1;
     render();
     await upsertFloor(f);
+    lastDataHash = dataHash(); // sync hash so poll doesn't re-render
     showToast('Level ' + f + ' saved ✓');
   }
 
@@ -185,6 +187,7 @@
     data[f].status = data[f].qty > 0 ? 'has' : 'none';
     render();
     await upsertFloor(f);
+    lastDataHash = dataHash();
   }
 
   function scheduleNote(f, val) {
@@ -192,10 +195,12 @@
     clearTimeout(noteTimers[f]);
     noteTimers[f] = setTimeout(async () => {
       await upsertFloor(f);
+      lastDataHash = dataHash();
       showToast('Note saved ✓');
     }, 900);
   }
 
+  function dataHash() { return JSON.stringify(FLOORS.map(f => data[f])); }
   function onSearch(v) { searchVal = v.trim(); render(); }
   function toggleFloor(f) { openFloor = openFloor === f ? null : f; render(); }
   function floorsToShow() {
@@ -286,7 +291,12 @@
   async function poll() {
     try {
       await loadAll();
-      render();
+      const newHash = dataHash();
+      if (newHash !== lastDataHash) {
+        // Data changed on another device — update our view
+        lastDataHash = newHash;
+        render();
+      }
       const t = new Date();
       document.getElementById('sync-lbl').textContent =
         'Live · ' + t.toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit' });
@@ -298,6 +308,7 @@
   async function init() {
     try {
       await loadAll();
+      lastDataHash = dataHash();
       render();
       document.getElementById('sync-lbl').textContent = 'Live';
       setInterval(poll, 3000);
