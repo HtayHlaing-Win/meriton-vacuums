@@ -162,11 +162,24 @@
     pendingSaves.add(f);
     try {
       const d = data[f];
-      await sbFetch('/rest/v1/floors', {
-        method: 'POST',
-        headers: { 'Prefer': 'resolution=merge-duplicates,return=minimal' },
-        body: JSON.stringify({ floor: f, status: d.status, qty: d.qty, note: d.note })
+      const res = await fetch(SUPABASE_URL + '/rest/v1/floors?floor=eq.' + f, {
+        method: 'PATCH',
+        headers: {
+          'apikey': SUPABASE_KEY,
+          'Authorization': 'Bearer ' + SUPABASE_KEY,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=minimal'
+        },
+        body: JSON.stringify({ status: d.status, qty: d.qty, note: d.note })
       });
+      if (!res.ok) {
+        const err = await res.text();
+        showToast('Save failed: ' + res.status);
+        console.error('Supabase error:', err);
+      }
+    } catch(e) {
+      showToast('Network error — not saved');
+      console.error('upsertFloor error:', e);
     } finally {
       pendingSaves.delete(f);
     }
