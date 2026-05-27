@@ -114,6 +114,7 @@
   const FLOORS = Array.from({length: 26}, (_, i) => i + 4);
 
   let data = {};
+  let lastDataHash = '';
   let openFloor = null;
   let searchVal = '';
   let noteTimers = {};
@@ -143,6 +144,10 @@
     }
     if (res.status === 204) return null;
     return res.json();
+  }
+
+  function dataHash() {
+    return JSON.stringify(data);
   }
 
   async function loadAll() {
@@ -275,7 +280,11 @@
   async function poll() {
     try {
       await loadAll();
-      render();
+      const hash = dataHash();
+      if (hash !== lastDataHash) {
+        lastDataHash = hash;
+        render();
+      }
       const t = new Date();
       document.getElementById('sync-lbl').textContent =
         'Live · ' + t.toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit' });
@@ -287,6 +296,7 @@
   async function init() {
     try {
       await loadAll();
+      lastDataHash = dataHash();
       render();
       document.getElementById('sync-lbl').textContent = 'Live';
       setInterval(poll, 3000);
