@@ -38,12 +38,13 @@
     .fc { background: #fff; border: 0.5px solid #e5e5e5; border-radius: var(--radius-lg); overflow: hidden; }
     .fc-header { display: flex; align-items: center; cursor: pointer; padding: 13px 14px; gap: 10px; user-select: none; }
     .fc-indicator { width: 4px; height: 40px; border-radius: 2px; flex-shrink: 0; }
-    .ind-has { background: #1D9E75; } .ind-none { background: #E24B4A; } .ind-unk { background: #d0d0d0; }
+    .ind-has { background: #1D9E75; } .ind-none { background: #E24B4A; } .ind-unk { background: #d0d0d0; } .ind-excess { background: #F59E0B; }
     .fc-info { flex: 1; }
     .fc-lvl { font-size: 15px; font-weight: 500; }
     .fc-meta { display: flex; align-items: center; gap: 6px; margin-top: 3px; }
     .badge { display: inline-block; padding: 2px 9px; border-radius: 99px; font-size: 11px; font-weight: 500; }
     .b-has { background: var(--green-bg); color: var(--green-text); }
+    .b-excess { background: #FEF3C7; color: #92400E; border: 1px solid #F59E0B; }
     .b-none { background: var(--red-bg); color: var(--red-text); }
     .b-unk { background: #f0f0f0; color: #666; }
     .fc-qty { font-size: 12px; color: #999; }
@@ -217,8 +218,15 @@
   function onSearch(v) { searchVal = v.trim(); render(); }
   function toggleFloor(f) { openFloor = openFloor === f ? null : f; render(); }
   function floorsToShow() {
-    if (searchVal === '') return FLOORS;
-    return FLOORS.filter(f => String(f).startsWith(searchVal));
+    const filtered = searchVal === '' ? [...FLOORS] : FLOORS.filter(f => String(f).startsWith(searchVal));
+    // Sort: excess (>1 vacuum) first, then missing, then has, then unknown
+    const order = { excess: 0, none: 1, has: 2, unknown: 3 };
+    return filtered.sort((a, b) => {
+      const ta = (data[a] && data[a].status === 'has' && data[a].qty > 1) ? 'excess' : (data[a] ? data[a].status : 'unknown');
+      const tb = (data[b] && data[b].status === 'has' && data[b].qty > 1) ? 'excess' : (data[b] ? data[b].status : 'unknown');
+      if (order[ta] !== order[tb]) return order[ta] - order[tb];
+      return a - b;
+    });
   }
 
   function render() {
@@ -236,11 +244,12 @@
       const d = data[f] || defaultFloor();
       const isOpen = openFloor === f;
       const badgeMap = {
-        has:     `<span class="badge b-has">Has vacuum</span>`,
+        has:     isExcess ? `<span class="badge b-excess">⚠️ ${d.qty} vacuums</span>` : `<span class="badge b-has">Has vacuum</span>`,
         none:    `<span class="badge b-none">Missing</span>`,
         unknown: `<span class="badge b-unk">Not checked</span>`
       };
-      const indMap = { has: 'ind-has', none: 'ind-none', unknown: 'ind-unk' };
+      const isExcess = d.status === 'has' && d.qty > 1;
+      const indMap = { has: isExcess ? 'ind-excess' : 'ind-has', none: 'ind-none', unknown: 'ind-unk' };
 
       const card = document.createElement('div');
       card.className = 'fc';
