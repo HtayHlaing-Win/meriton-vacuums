@@ -243,13 +243,13 @@
     floors.forEach(f => {
       const d = data[f] || defaultFloor();
       const isOpen = openFloor === f;
+      const isExcess = d.status === 'has' && d.qty > 1;
+      const indMap = { has: isExcess ? 'ind-excess' : 'ind-has', none: 'ind-none', unknown: 'ind-unk' };
       const badgeMap = {
         has:     isExcess ? `<span class="badge b-excess">⚠️ ${d.qty} vacuums</span>` : `<span class="badge b-has">Has vacuum</span>`,
         none:    `<span class="badge b-none">Missing</span>`,
         unknown: `<span class="badge b-unk">Not checked</span>`
       };
-      const isExcess = d.status === 'has' && d.qty > 1;
-      const indMap = { has: isExcess ? 'ind-excess' : 'ind-has', none: 'ind-none', unknown: 'ind-unk' };
 
       const card = document.createElement('div');
       card.className = 'fc';
