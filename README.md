@@ -40,26 +40,6 @@ A real-time shared web app for house attendants to track vacuum cleaner inventor
 
 -----
 
-## 🗄️ Database Setup (Supabase)
-
-Run this in your Supabase SQL Editor to set up the table:
-
-```sql
-create table floors (
-  floor int primary key,
-  status text default 'unknown',
-  qty int default 0,
-  note text default ''
-);
-
-insert into floors (floor)
-select generate_series(4, 29);
-
-grant select, insert, update, delete on table floors to anon;
-```
-
------
-
 ## 📦 Deployment
 
 1. Push `index.html` to this repository
