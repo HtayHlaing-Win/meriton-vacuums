@@ -1,475 +1,301 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Meriton Vacuums - Floor Status Tracker</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <title>Meriton Pantry Vacuums</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; -webkit-tap-highlight-color: transparent; margin: 0; padding: 0; }
+    :root {
+      --green-bg: #E1F5EE; --green-text: #085041; --green-border: #1D9E75;
+      --red-bg: #FCEBEB; --red-text: #501313; --red-border: #E24B4A;
+      --radius-md: 8px; --radius-lg: 12px;
+    }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f5f5f3; color: #1a1a1a; min-height: 100vh; }
+    .app { max-width: 480px; margin: 0 auto; padding: 16px; }
 
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            padding: 20px;
-        }
+    .hdr { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 16px; }
+    .hdr-title { font-size: 18px; font-weight: 600; color: #1a1a1a; }
+    .hdr-sub { font-size: 12px; color: #888; margin-top: 3px; display: flex; align-items: center; gap: 5px; }
+    .dot { width: 7px; height: 7px; border-radius: 50%; background: #1D9E75; display: inline-block; animation: pulse 2s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
 
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-        }
+    .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 16px; }
+    .stat { background: #fff; border-radius: var(--radius-md); padding: 12px 14px; border: 0.5px solid #e5e5e5; }
+    .stat-n { font-size: 22px; font-weight: 600; }
+    .stat-l { font-size: 11px; color: #888; margin-top: 2px; }
 
-        .header {
-            background: white;
-            padding: 30px;
-            border-radius: 10px;
-            margin-bottom: 30px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-            text-align: center;
-        }
+    .search-wrap { position: relative; margin-bottom: 12px; }
+    .search-wrap input {
+      width: 100%; padding: 11px 14px 11px 40px;
+      border: 0.5px solid #d0d0d0; border-radius: var(--radius-lg);
+      font-size: 15px; background: #fff; color: #1a1a1a; outline: none;
+    }
+    .search-wrap input:focus { border-color: #888; }
+    .search-icon { position: absolute; left: 13px; top: 50%; transform: translateY(-50%); font-size: 16px; color: #aaa; pointer-events: none; }
 
-        .header h1 {
-            color: #333;
-            margin-bottom: 10px;
-            font-size: 2.5em;
-        }
+    .floor-list { display: flex; flex-direction: column; gap: 8px; }
+    .fc { background: #fff; border: 0.5px solid #e5e5e5; border-radius: var(--radius-lg); overflow: hidden; }
+    .fc-header { display: flex; align-items: center; cursor: pointer; padding: 13px 14px; gap: 10px; user-select: none; }
+    .fc-indicator { width: 4px; height: 40px; border-radius: 2px; flex-shrink: 0; }
+    .ind-has { background: #1D9E75; } .ind-none { background: #E24B4A; } .ind-unk { background: #d0d0d0; }
+    .fc-info { flex: 1; }
+    .fc-lvl { font-size: 15px; font-weight: 500; }
+    .fc-meta { display: flex; align-items: center; gap: 6px; margin-top: 3px; }
+    .badge { display: inline-block; padding: 2px 9px; border-radius: 99px; font-size: 11px; font-weight: 500; }
+    .b-has { background: var(--green-bg); color: var(--green-text); }
+    .b-none { background: var(--red-bg); color: var(--red-text); }
+    .b-unk { background: #f0f0f0; color: #666; }
+    .fc-qty { font-size: 12px; color: #999; }
+    .chevron { font-size: 13px; color: #bbb; transition: transform .2s; flex-shrink: 0; }
+    .chevron.open { transform: rotate(180deg); }
 
-        .header p {
-            color: #666;
-            font-size: 1.1em;
-        }
+    .fc-body { padding: 0 14px 14px; border-top: 0.5px solid #f0f0f0; }
+    .tog-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
+    .tog { padding: 11px; border-radius: var(--radius-md); border: 0.5px solid #d0d0d0; background: transparent; cursor: pointer; font-size: 13px; color: #666; text-align: center; }
+    .tog:active { opacity: .7; }
+    .tog.sel-has { background: var(--green-bg); border-color: var(--green-border); color: var(--green-text); font-weight: 500; }
+    .tog.sel-none { background: var(--red-bg); border-color: var(--red-border); color: var(--red-text); font-weight: 500; }
 
-        .status-container {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
-            margin-bottom: 30px;
-        }
+    .qty-row { display: flex; align-items: center; gap: 12px; margin-top: 12px; }
+    .qty-btn { width: 38px; height: 38px; border-radius: var(--radius-md); border: 0.5px solid #d0d0d0; background: transparent; cursor: pointer; font-size: 22px; color: #1a1a1a; display: flex; align-items: center; justify-content: center; }
+    .qty-btn:active { background: #f5f5f5; }
+    .qty-val { font-size: 20px; font-weight: 600; min-width: 26px; text-align: center; }
+    .qty-lbl { font-size: 12px; color: #999; }
 
-        .floor-card {
-            background: white;
-            border-radius: 10px;
-            padding: 20px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-            cursor: pointer;
-            transition: all 0.3s ease;
-            border-left: 5px solid #ccc;
-        }
+    .note-box { width: 100%; margin-top: 10px; padding: 9px 12px; border: 0.5px solid #d0d0d0; border-radius: var(--radius-md); font-size: 13px; background: #fafafa; color: #1a1a1a; resize: none; height: 52px; font-family: inherit; outline: none; }
+    .note-box:focus { border-color: #888; background: #fff; }
+    .empty { text-align: center; padding: 2.5rem 1rem; color: #aaa; font-size: 14px; }
+    .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: #1a1a1a; color: #fff; padding: 9px 18px; border-radius: 99px; font-size: 13px; opacity: 0; transition: opacity .3s; pointer-events: none; z-index: 999; }
+    .toast.show { opacity: 1; }
 
-        .floor-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
-        }
-
-        .floor-card.cleaning {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border-left-color: #667eea;
-        }
-
-        .floor-card.done {
-            background: linear-gradient(135deg, #84fab0 0%, #8fd3f4 100%);
-            border-left-color: #84fab0;
-        }
-
-        .floor-card.paused {
-            background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
-            border-left-color: #fa709a;
-        }
-
-        .floor-card.unknown {
-            background: #f5f5f5;
-            color: #333;
-            border-left-color: #ccc;
-        }
-
-        .floor-number {
-            font-size: 1.8em;
-            font-weight: bold;
-            margin-bottom: 10px;
-        }
-
-        .floor-status {
-            font-size: 0.9em;
-            margin-bottom: 8px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            font-weight: 600;
-        }
-
-        .floor-qty {
-            font-size: 0.85em;
-            opacity: 0.9;
-            margin-bottom: 8px;
-        }
-
-        .floor-note {
-            font-size: 0.8em;
-            opacity: 0.85;
-            font-style: italic;
-            word-break: break-word;
-        }
-
-        .modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.5);
-            z-index: 1000;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .modal.active {
-            display: flex;
-        }
-
-        .modal-content {
-            background: white;
-            border-radius: 15px;
-            padding: 30px;
-            max-width: 400px;
-            width: 90%;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-        }
-
-        .modal-header {
-            font-size: 1.8em;
-            font-weight: bold;
-            margin-bottom: 20px;
-            color: #333;
-        }
-
-        .form-group {
-            margin-bottom: 20px;
-        }
-
-        .form-group label {
-            display: block;
-            margin-bottom: 8px;
-            color: #333;
-            font-weight: 600;
-        }
-
-        .form-group select,
-        .form-group input {
-            width: 100%;
-            padding: 12px;
-            border: 2px solid #ddd;
-            border-radius: 8px;
-            font-size: 1em;
-            transition: border-color 0.3s;
-        }
-
-        .form-group select:focus,
-        .form-group input:focus {
-            outline: none;
-            border-color: #667eea;
-        }
-
-        .button-group {
-            display: flex;
-            gap: 10px;
-            justify-content: space-between;
-            margin-top: 30px;
-        }
-
-        .btn {
-            flex: 1;
-            padding: 12px 20px;
-            border: none;
-            border-radius: 8px;
-            font-size: 1em;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s;
-        }
-
-        .btn-primary {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-        }
-
-        .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
-        }
-
-        .btn-secondary {
-            background: #f5f5f5;
-            color: #333;
-            border: 2px solid #ddd;
-        }
-
-        .btn-secondary:hover {
-            background: #eee;
-        }
-
-        .status-badge {
-            display: inline-block;
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 0.75em;
-            font-weight: 700;
-            text-transform: uppercase;
-        }
-
-        .status-badge.cleaning {
-            background: #667eea;
-            color: white;
-        }
-
-        .status-badge.done {
-            background: #84fab0;
-            color: #333;
-        }
-
-        .status-badge.paused {
-            background: #fa709a;
-            color: white;
-        }
-
-        .loading {
-            text-align: center;
-            padding: 40px;
-            color: white;
-            font-size: 1.2em;
-        }
-
-        .error-message {
-            background: #ff6b6b;
-            color: white;
-            padding: 15px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            text-align: center;
-        }
-
-        @media (max-width: 768px) {
-            .header h1 {
-                font-size: 1.8em;
-            }
-
-            .status-container {
-                grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-                gap: 10px;
-            }
-
-            .floor-card {
-                padding: 15px;
-            }
-
-            .floor-number {
-                font-size: 1.5em;
-            }
-        }
-    </style>
+    @media (prefers-color-scheme: dark) {
+      body { background: #111; color: #f0f0f0; }
+      .stat, .fc, .search-wrap input, .note-box { background: #1e1e1e; border-color: #333; color: #f0f0f0; }
+      .fc-body { border-color: #2a2a2a; }
+      .b-unk { background: #2a2a2a; color: #999; }
+      .tog { border-color: #333; color: #aaa; }
+      .qty-btn { border-color: #333; color: #f0f0f0; }
+      .note-box { background: #161616; }
+      .ind-unk { background: #444; }
+      .hdr-title, .fc-lvl { color: #f0f0f0; }
+    }
+  </style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <h1>🧹 Meriton Vacuums</h1>
-            <p>Floor Status Tracker</p>
-        </div>
-
-        <div id="errorMessage" class="error-message" style="display: none;"></div>
-
-        <div id="loadingMessage" class="loading">
-            Loading floor data...
-        </div>
-
-        <div id="statusContainer" class="status-container" style="display: none;"></div>
+<div class="app">
+  <div class="hdr">
+    <div>
+      <div class="hdr-title">🏢 Pantry vacuums</div>
+      <div class="hdr-sub"><span class="dot"></span><span id="sync-lbl">Connecting…</span></div>
     </div>
+  </div>
 
-    <div id="modal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">Floor <span id="modalFloorNumber"></span></div>
-            <form id="floorForm">
-                <div class="form-group">
-                    <label for="status">Status</label>
-                    <select id="status" required>
-                        <option value="unknown">Unknown</option>
-                        <option value="cleaning">Cleaning</option>
-                        <option value="done">Done</option>
-                        <option value="paused">Paused</option>
-                    </select>
-                </div>
+  <div class="stats">
+    <div class="stat"><div class="stat-n" id="s-has" style="color:#0F6E56">—</div><div class="stat-l">Floors with vacuum</div></div>
+    <div class="stat"><div class="stat-n" id="s-none" style="color:#A32D2D">—</div><div class="stat-l">Floors missing</div></div>
+    <div class="stat"><div class="stat-n" id="s-total" style="color:#1a1a1a">—</div><div class="stat-l">Total vacuums</div></div>
+    <div class="stat"><div class="stat-n" id="s-unk" style="color:#999">—</div><div class="stat-l">Not checked</div></div>
+  </div>
 
-                <div class="form-group">
-                    <label for="qty">Quantity (rooms cleaned)</label>
-                    <input type="number" id="qty" min="0" value="0">
-                </div>
+  <div class="search-wrap">
+    <span class="search-icon">🔍</span>
+    <input type="number" id="search" placeholder="Type floor number e.g. 12"
+           min="4" max="29" inputmode="numeric" oninput="onSearch(this.value)" />
+  </div>
 
-                <div class="form-group">
-                    <label for="note">Note</label>
-                    <input type="text" id="note" placeholder="e.g., waiting for tenant">
-                </div>
+  <div class="floor-list" id="floor-list"></div>
+</div>
+<div class="toast" id="toast"></div>
 
-                <div class="button-group">
-                    <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
-                    <button type="submit" class="btn btn-primary">Save</button>
-                </div>
-            </form>
+<script>
+  const SUPABASE_URL = "https://bizgyzqrgwjkntszihci.supabase.co";
+  const SUPABASE_KEY = "sb_publishable_b4I1E_66kkwI8ach3ZPgLw_bM675B9l";
+  const FLOORS = Array.from({length: 26}, (_, i) => i + 4);
+
+  let data = {};
+  let openFloor = null;
+  let searchVal = '';
+  let noteTimers = {};
+
+  function defaultFloor() { return { status: 'unknown', qty: 0, note: '' }; }
+
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg; t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2000);
+  }
+
+  async function sbFetch(path, options = {}) {
+    const res = await fetch(SUPABASE_URL + path, {
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': 'Bearer ' + SUPABASE_KEY,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=minimal',
+        ...options.headers
+      },
+      ...options
+    });
+    if (!res.ok) {
+      const err = await res.text();
+      throw new Error(err);
+    }
+    if (res.status === 204) return null;
+    return res.json();
+  }
+
+  async function loadAll() {
+    const rows = await sbFetch('/rest/v1/floors?select=*&order=floor.asc');
+    FLOORS.forEach(f => { data[f] = defaultFloor(); });
+    rows.forEach(r => { data[r.floor] = { status: r.status, qty: r.qty, note: r.note || '' }; });
+  }
+
+  async function upsertFloor(f) {
+    const d = data[f];
+    await sbFetch('/rest/v1/floors', {
+      method: 'POST',
+      headers: { 'Prefer': 'resolution=merge-duplicates,return=minimal' },
+      body: JSON.stringify({ floor: f, status: d.status, qty: d.qty, note: d.note })
+    });
+  }
+
+  async function setStatus(f, s) {
+    data[f].status = s;
+    if (s === 'none') data[f].qty = 0;
+    if (s === 'has' && data[f].qty === 0) data[f].qty = 1;
+    render();
+    await upsertFloor(f);
+    showToast('Level ' + f + ' saved ✓');
+  }
+
+  async function changeQty(f, delta) {
+    data[f].qty = Math.max(0, (data[f].qty || 0) + delta);
+    data[f].status = data[f].qty > 0 ? 'has' : 'none';
+    render();
+    await upsertFloor(f);
+  }
+
+  function scheduleNote(f, val) {
+    data[f].note = val;
+    clearTimeout(noteTimers[f]);
+    noteTimers[f] = setTimeout(async () => {
+      await upsertFloor(f);
+      showToast('Note saved ✓');
+    }, 900);
+  }
+
+  function onSearch(v) { searchVal = v.trim(); render(); }
+  function toggleFloor(f) { openFloor = openFloor === f ? null : f; render(); }
+  function floorsToShow() {
+    if (searchVal === '') return FLOORS;
+    return FLOORS.filter(f => String(f).startsWith(searchVal));
+  }
+
+  function render() {
+    const list = document.getElementById('floor-list');
+    const floors = floorsToShow();
+    if (floors.length === 0) {
+      list.innerHTML = `<div class="empty">No floors match "${searchVal}"</div>`;
+      updateStats(); return;
+    }
+
+    const focusId = document.activeElement ? document.activeElement.id : null;
+    list.innerHTML = '';
+
+    floors.forEach(f => {
+      const d = data[f] || defaultFloor();
+      const isOpen = openFloor === f;
+      const badgeMap = {
+        has:     `<span class="badge b-has">Has vacuum</span>`,
+        none:    `<span class="badge b-none">Missing</span>`,
+        unknown: `<span class="badge b-unk">Not checked</span>`
+      };
+      const indMap = { has: 'ind-has', none: 'ind-none', unknown: 'ind-unk' };
+
+      const card = document.createElement('div');
+      card.className = 'fc';
+
+      const qtyLine = d.status === 'has'
+        ? `<div class="qty-row">
+            <button class="qty-btn" onclick="changeQty(${f},-1)">−</button>
+            <span class="qty-val">${d.qty}</span>
+            <button class="qty-btn" onclick="changeQty(${f},1)">+</button>
+            <span class="qty-lbl">vacuum${d.qty !== 1 ? 's' : ''} in pantry</span>
+           </div>` : '';
+
+      const body = isOpen
+        ? `<div class="fc-body">
+            <div class="tog-row">
+              <button class="tog ${d.status === 'has' ? 'sel-has' : ''}" onclick="setStatus(${f},'has')">✓ Yes, has one</button>
+              <button class="tog ${d.status === 'none' ? 'sel-none' : ''}" onclick="setStatus(${f},'none')">✗ No vacuum</button>
+            </div>
+            ${qtyLine}
+            <textarea id="note-${f}" class="note-box" placeholder="Add a note…"
+              oninput="scheduleNote(${f},this.value)">${d.note || ''}</textarea>
+           </div>` : '';
+
+      card.innerHTML = `
+        <div class="fc-header" onclick="toggleFloor(${f})">
+          <div class="fc-indicator ${indMap[d.status]}"></div>
+          <div class="fc-info">
+            <div class="fc-lvl">Level ${f}</div>
+            <div class="fc-meta">
+              ${badgeMap[d.status]}
+              ${d.status === 'has' ? `<span class="fc-qty">${d.qty} pc${d.qty !== 1 ? 's' : ''}</span>` : ''}
+            </div>
+          </div>
+          <span class="chevron ${isOpen ? 'open' : ''}">▼</span>
         </div>
-    </div>
+        ${body}`;
+      list.appendChild(card);
+    });
 
-    <script>
-        // Supabase Configuration
-        const SUPABASE_URL = 'https://bizgyzqrgwjkntszihci.supabase.co';
-        const SUPABASE_KEY = 'sb_publishable_b4I1E_66kkwI8ach3ZPgLw_bM675B9l';
+    if (focusId && focusId.startsWith('note-')) {
+      const el = document.getElementById(focusId);
+      if (el) { el.focus(); const l = el.value.length; el.setSelectionRange(l, l); }
+    }
+    updateStats();
+  }
 
-        let currentFloor = null;
-        let floorData = {};
-        let refreshInterval = null;
+  function updateStats() {
+    let has = 0, none = 0, unk = 0, total = 0;
+    FLOORS.forEach(f => {
+      const d = data[f] || defaultFloor();
+      if (d.status === 'has') { has++; total += d.qty || 0; }
+      else if (d.status === 'none') none++;
+      else unk++;
+    });
+    document.getElementById('s-has').textContent = has;
+    document.getElementById('s-none').textContent = none;
+    document.getElementById('s-total').textContent = total;
+    document.getElementById('s-unk').textContent = unk;
+  }
 
-        // Initialize
-        async function init() {
-            await loadFloors();
-            renderFloors();
-            
-            // Auto-refresh every 5 seconds
-            refreshInterval = setInterval(async () => {
-                await loadFloors();
-                renderFloors();
-            }, 5000);
-        }
+  async function poll() {
+    try {
+      await loadAll();
+      render();
+      const t = new Date();
+      document.getElementById('sync-lbl').textContent =
+        'Live · ' + t.toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit' });
+    } catch(e) {
+      document.getElementById('sync-lbl').textContent = 'Connection error';
+    }
+  }
 
-        // Load floors from Supabase
-        async function loadFloors() {
-            try {
-                const response = await fetch(
-                    `${SUPABASE_URL}/rest/v1/floors?select=*`,
-                    {
-                        headers: {
-                            'apikey': SUPABASE_KEY,
-                            'Authorization': `Bearer ${SUPABASE_KEY}`
-                        }
-                    }
-                );
+  async function init() {
+    try {
+      await loadAll();
+      render();
+      document.getElementById('sync-lbl').textContent = 'Live';
+      setInterval(poll, 3000);
+    } catch(e) {
+      document.getElementById('sync-lbl').textContent = 'Error: ' + e.message;
+    }
+  }
 
-                if (!response.ok) {
-                    throw new Error('Failed to load data');
-                }
-
-                const data = await response.json();
-                floorData = {};
-                data.forEach(floor => {
-                    floorData[floor.floor] = {
-                        status: floor.status || 'unknown',
-                        qty: floor.qty || 0,
-                        note: floor.note || ''
-                    };
-                });
-
-                document.getElementById('loadingMessage').style.display = 'none';
-                document.getElementById('statusContainer').style.display = 'grid';
-                document.getElementById('errorMessage').style.display = 'none';
-            } catch (error) {
-                console.error('Error:', error);
-                document.getElementById('errorMessage').textContent = '⚠️ Connection error. Retrying...';
-                document.getElementById('errorMessage').style.display = 'block';
-            }
-        }
-
-        // Render floor cards
-        function renderFloors() {
-            const container = document.getElementById('statusContainer');
-            container.innerHTML = '';
-
-            for (let floor = 4; floor <= 29; floor++) {
-                const data = floorData[floor] || { status: 'unknown', qty: 0, note: '' };
-                
-                const card = document.createElement('div');
-                card.className = `floor-card ${data.status}`;
-                card.onclick = () => openModal(floor);
-
-                card.innerHTML = `
-                    <div class="floor-number">Floor ${floor}</div>
-                    <div class="floor-status">
-                        <span class="status-badge ${data.status}">${data.status}</span>
-                    </div>
-                    <div class="floor-qty">Rooms: ${data.qty}</div>
-                    ${data.note ? `<div class="floor-note">"${data.note}"</div>` : ''}
-                `;
-
-                container.appendChild(card);
-            }
-        }
-
-        // Open edit modal
-        function openModal(floor) {
-            currentFloor = floor;
-            const data = floorData[floor] || { status: 'unknown', qty: 0, note: '' };
-
-            document.getElementById('modalFloorNumber').textContent = floor;
-            document.getElementById('status').value = data.status;
-            document.getElementById('qty').value = data.qty;
-            document.getElementById('note').value = data.note;
-
-            document.getElementById('modal').classList.add('active');
-        }
-
-        // Close modal
-        function closeModal() {
-            document.getElementById('modal').classList.remove('active');
-            currentFloor = null;
-        }
-
-        // Save floor data
-        document.getElementById('floorForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-
-            const status = document.getElementById('status').value;
-            const qty = parseInt(document.getElementById('qty').value) || 0;
-            const note = document.getElementById('note').value;
-
-            try {
-                const response = await fetch(
-                    `${SUPABASE_URL}/rest/v1/floors?floor=eq.${currentFloor}`,
-                    {
-                        method: 'PATCH',
-                        headers: {
-                            'apikey': SUPABASE_KEY,
-                            'Authorization': `Bearer ${SUPABASE_KEY}`,
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            status: status,
-                            qty: qty,
-                            note: note
-                        })
-                    }
-                );
-
-                if (!response.ok) {
-                    throw new Error('Failed to save');
-                }
-
-                await loadFloors();
-                renderFloors();
-                closeModal();
-            } catch (error) {
-                console.error('Error:', error);
-                alert('Error saving floor data');
-            }
-        });
-
-        // Close modal when clicking outside
-        document.getElementById('modal').addEventListener('click', (e) => {
-            if (e.target.id === 'modal') {
-                closeModal();
-            }
-        });
-
-        // Start the app
-        init();
-    </script>
+  init();
+</script>
 </body>
 </html>
